@@ -1,35 +1,52 @@
 pipeline {
     agent any
 
+    tools {
+        maven 'Maven3'
+        jdk 'JDK17'
+    }
+
     stages {
-        stage('Clone') {
+        stage('Checkout') {
             steps {
-                git branch: 'main',
-                    url: 'https://github.com/phanishanker/cicd-demo-app.git'
+                git url: 'https://github.com/<your-name>/cicd-demo-app.git', branch: 'main'
             }
         }
 
         stage('Build') {
             steps {
-                sh 'echo "Building application..."'
+                sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('Test') {
             steps {
-                sh 'echo "Running tests..."'
+                sh 'mvn test'
             }
         }
 
-        stage('Package') {
+        stage('SonarQube Analysis') {
             steps {
-                sh 'echo "Packaging..."'
+                echo "Sonar will be added later"
             }
         }
-    }
-    post {
-        success {
-            echo "Pipeline completed successfully!"
+
+        stage('Docker Build') {
+            steps {
+                echo "Docker build will be added later"
+            }
+        }
+
+        stage('Push to ECR') {
+            steps {
+                echo "ECR push will be added later"
+            }
+        }
+
+        stage('Deploy via ArgoCD') {
+            steps {
+                echo "ArgoCD rollout will be added later"
+            }
         }
     }
 }
