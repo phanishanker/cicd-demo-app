@@ -28,17 +28,13 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                script {
-                    sh """
-                    docker build -t ${ECR_REPO}:latest .
-                    """
-                }
+                sh "docker build -t ${ECR_REPO}:latest ."
             }
         }
 
         stage('ECR Login') {
             steps {
-                withAWS(credentials: 'aws-ecr-creds', region: "${AWS_REGION}") {
+                withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
                     sh """
                     aws ecr get-login-password --region ${AWS_REGION} | \
                     docker login --username AWS --password-stdin ${ECR_REGISTRY}
@@ -62,7 +58,6 @@ pipeline {
                 }
             }
         }
-
     }
 
     post {
@@ -74,4 +69,3 @@ pipeline {
         }
     }
 }
-//test
