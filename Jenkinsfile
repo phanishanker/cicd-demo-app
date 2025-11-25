@@ -1,52 +1,76 @@
 pipeline {
     agent any
 
+    environment {
+        ECR_REGISTRY = "120935945180.dkr.ecr.ap-southeast-1.amazonaws.com"
+        ECR_REPO = "cicd-demo-app"
+        AWS_REGION = "ap-southeast-1"
+    }
+
     tools {
         maven 'Maven3'
         jdk 'JDK17'
     }
 
     stages {
+
         stage('Checkout') {
             steps {
-                git url: 'https://github.com/phanishanker/cicd-demo-app.git', branch: 'main'
+                git branch: 'main', url: 'https://github.com/phanishanker/cicd-demo-app.git'
             }
         }
 
-        stage('Build') {
+        stage('Build App') {
             steps {
-                sh 'mvn clean package -DskipTests'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                sh 'mvn test'
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                echo "Sonar will be added later"
+                sh 'mvn clean install -DskipTests=false'
             }
         }
 
         stage('Docker Build') {
             steps {
-                echo "Docker build will be added later"
+                script {
+                    sh """
+                    docker build -t ${ECR_REPO}:latest .
+                    """
+                }
             }
         }
 
-        stage('Push to ECR') {
+        stage('ECR Login') {
             steps {
-                echo "ECR push will be added later"
+                withAWS(credentials: 'aws-ecr-creds', region: "${AWS_REGION}") {
+                    sh """
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                    """
+                }
             }
         }
 
-        stage('Deploy via ArgoCD') {
+        stage('Tag & Push Image') {
             steps {
-                echo "ArgoCD rollout will be added later"
+                script {
+                    def imageTag = sh(script: "date +%Y%m%d%H%M%S", returnStdout: true).trim()
+
+                    sh """
+                    docker tag ${ECR_REPO}:latest ${ECR_REGISTRY}/${ECR_REPO}:${imageTag}
+                    docker tag ${ECR_REPO}:latest ${ECR_REGISTRY}/${ECR_REPO}:latest
+
+                    docker push ${ECR_REGISTRY}/${ECR_REPO}:${imageTag}
+                    docker push ${ECR_REGISTRY}/${ECR_REPO}:latest
+                    """
+                }
             }
+        }
+
+    }
+
+    post {
+        success {
+            echo "Build + Docker Push completed successfully."
+        }
+        failure {
+            echo "Pipeline failed."
         }
     }
 }
